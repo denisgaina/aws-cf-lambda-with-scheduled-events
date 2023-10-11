@@ -1,0 +1,124 @@
+Parameters:
+  Owner:
+    Type: String
+    Default: "denis.gaina"
+  LambdaS3Bucket:
+    Type: String
+    Default: "denis-gaina-cloudformation"
+  LambdaS3Key:
+    Type: String
+    Default: "lambda/code.zip"
+  LambdaName:
+    Type: String
+    Default: "denis-gaina-workshop-lambda"
+  TopicName:
+    Type: String
+    Default: "denis-gaina-sns"
+  EmailAddress:
+    Type: String
+    Default: "gainadenis7@gmail.com"
+
+Resources: 
+  LambdaLogGroup:
+    Type: "AWS::Logs::LogGroup"
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${LambdaName}"
+
+  IamRoleLambdaExecution:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: !Sub "${LambdaName}-role"  
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: "Allow"
+          Principal:
+            Service:
+            - "lambda.amazonaws.com"
+          Action: "sts:AssumeRole"
+      ManagedPolicyArns: 
+      - "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+      Policies:
+      - PolicyName: !Sub "${LambdaName}-policy"
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Effect: "Allow"
+            Action:
+            - "logs:CreateLogStream"
+            - "logs:CreateLogGroup"
+            - "logs:PutLogEvents"
+            Resource:
+            - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${LambdaName}:*"
+
+  MyLambda:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      Code:
+        S3Bucket: !Ref "LambdaS3Bucket"
+        S3Key: !Ref "LambdaS3Key"
+      Description: "Performs a periodic check of the given site, erroring out on test failure."
+      FunctionName: !Ref "LambdaName"
+      Handler: "code.lambda_handler"
+      MemorySize: 128
+      PackageType: "Zip"
+      Role: !GetAtt "IamRoleLambdaExecution.Arn"
+      Runtime: "python3.10"
+      Timeout: 10
+      Tags: 
+        - Key: "Owner"
+          Value: !Ref "Owner"
+      Environment: 
+        Variables:
+          SITE: "https://docs.aws.amazon.com/lambda/latest/dg/welcome.html"
+          EXPECTED: "What is AWS Lambda?"
+
+  MyLambdaTrigger:
+    Type: AWS::Events::Rule
+    Properties: 
+      Name: !Sub "${LambdaName}-trigger"
+      State: "ENABLED"
+      Description: !Sub "trigger for the ${LambdaName} lambda"
+      ScheduleExpression: "rate(5 minutes)"
+      Targets: 
+        - Id: !Sub "${LambdaName}-trigger"
+          Arn: !GetAtt MyLambda.Arn
+
+  InvokeLambdaFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt MyLambda.Arn
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt MyLambdaTrigger.Arn
+
+  SNSTopic:
+    Type: "AWS::SNS::Topic"
+    Properties:
+      DisplayName: !Sub "${TopicName}-topic" 
+
+  SNSSubscription:
+    Type: "AWS::SNS::Subscription"
+    Properties:
+      Protocol: "email"
+      TopicArn:
+        Ref: "SNSTopic"
+      Endpoint: !Ref "EmailAddress"
+
+  MyCloudWatchAlarm:
+    Type: 'AWS::CloudWatch::Alarm'
+    Properties:
+      AlarmDescription: An alarm for when the Lambda function fails
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Statistic: Sum
+      Period: '300'
+      EvaluationPeriods: '1'
+      Threshold: '1'
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !Ref SNSTopic
+      Dimensions:
+        - Name: FunctionName
+          Value:
+            Ref: MyLambda
