@@ -19,6 +19,7 @@
 4. deploy the cloudformation stack by running the shell script, you can create your own shell script
 
     `chmod +x zip_lambda.sh`
+    
     `sh zip_lambda.sh`
 
 5. you can list all cloudformation stacks with 
