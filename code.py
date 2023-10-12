@@ -1,9 +1,10 @@
 import os
+import boto3
 from datetime import datetime
 from urllib.request import Request, urlopen
 
-SITE = os.environ['SITE']  # URL of the site to check, stored in the site environment variable
-# SITE = "https://docs.aws.amazon.com/lambda/latest/dg/welcome.html"
+ssm = boto3.client('ssm')
+
 EXPECTED = os.environ['EXPECTED']  # String expected to be on the page, stored in the expected environment variable
 # EXPECTED = "What is AWS Lambda?"
 
@@ -17,6 +18,8 @@ def validate(res):
 
 
 def lambda_handler(event, context):
+    site_name = os.environ.get('SITE_NAME') # URL of the site to check, stored in the site environment variable
+    SITE = ssm.get_parameter(Name=site_name, WithDecryption=True)['Parameter']['Value']
     time = str(datetime.now())
     print(f"Checking {SITE} at {time}...")
     try:
