@@ -16,9 +16,17 @@ Parameters:
     Default: "denis-gaina-sns"
   EmailAddress:
     Type: String
-    Default: "gainadenis7@gmail.com"
+    Default: "testingbill360@gmail.com"
 
 Resources: 
+  MySSMParameter:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name: !Sub "${LambdaName}-parameter"
+      Type: String
+      Value: "https://docs.aws.amazon.com/lambda/latest/dg/welcome.html"
+      Description: Some secret for My Application
+
   LambdaLogGroup:
     Type: "AWS::Logs::LogGroup"
     Properties:
@@ -50,6 +58,15 @@ Resources:
             - "logs:PutLogEvents"
             Resource:
             - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${LambdaName}:*"
+      - PolicyName: !Sub "${LambdaName}-ssm-policy"
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Effect: "Allow"
+            Action:
+            - "ssm:GetParameter"
+            Resource:
+            - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${LambdaName}-parameter"
 
   MyLambda:
     Type: "AWS::Lambda::Function"
@@ -70,7 +87,7 @@ Resources:
           Value: !Ref "Owner"
       Environment: 
         Variables:
-          SITE: "https://docs.aws.amazon.com/lambda/latest/dg/welcome.html"
+          SITE_NAME: !Sub "${LambdaName}-parameter"
           EXPECTED: "What is AWS Lambda?"
 
   MyLambdaTrigger:
