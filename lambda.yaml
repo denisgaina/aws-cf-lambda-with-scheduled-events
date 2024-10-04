@@ -1,28 +1,19 @@
 Parameters:
-  Owner:
+  UniqueName: 
     Type: String
-    Default: "denis.gaina"
-  LambdaS3Bucket:
-    Type: String
-    Default: "denis-gaina-cloudformation"
-  LambdaS3Key:
-    Type: String
-    Default: "lambda/code.zip"
-  LambdaName:
-    Type: String
-    Default: "denis-gaina-workshop-lambda"
-  TopicName:
-    Type: String
-    Default: "denis-gaina-sns"
+    Default: "denis-gaina-workshop"
   EmailAddress:
     Type: String
     Default: "testingbill360@gmail.com"
+  LambdaS3Key:
+    Type: String
+    Default: "lambda/code.zip"
 
 Resources: 
   MySSMParameter:
     Type: 'AWS::SSM::Parameter'
     Properties:
-      Name: !Sub "${LambdaName}-parameter"
+      Name: !Sub "${UniqueName}-parameter"
       Type: String
       Value: "https://docs.aws.amazon.com/lambda/latest/dg/welcome.html"
       Description: Some secret for My Application
@@ -30,12 +21,12 @@ Resources:
   LambdaLogGroup:
     Type: "AWS::Logs::LogGroup"
     Properties:
-      LogGroupName: !Sub "/aws/lambda/${LambdaName}"
+      LogGroupName: !Sub "/aws/lambda/${UniqueName}-lambda"
 
   IamRoleLambdaExecution:
     Type: "AWS::IAM::Role"
     Properties:
-      RoleName: !Sub "${LambdaName}-role"  
+      RoleName: !Sub "${UniqueName}-role"  
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -47,7 +38,7 @@ Resources:
       ManagedPolicyArns: 
       - "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
       Policies:
-      - PolicyName: !Sub "${LambdaName}-policy"
+      - PolicyName: !Sub "${UniqueName}-policy"
         PolicyDocument:
           Version: "2012-10-17"
           Statement:
@@ -57,8 +48,8 @@ Resources:
             - "logs:CreateLogGroup"
             - "logs:PutLogEvents"
             Resource:
-            - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${LambdaName}:*"
-      - PolicyName: !Sub "${LambdaName}-ssm-policy"
+            - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${UniqueName}-lambda:*"
+      - PolicyName: !Sub "${UniqueName}-ssm-policy"
         PolicyDocument:
           Version: "2012-10-17"
           Statement:
@@ -66,16 +57,16 @@ Resources:
             Action:
             - "ssm:GetParameter"
             Resource:
-            - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${LambdaName}-parameter"
+            - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${UniqueName}-parameter"
 
   MyLambda:
     Type: "AWS::Lambda::Function"
     Properties:
       Code:
-        S3Bucket: !Ref "LambdaS3Bucket"
+        S3Bucket: !Ref "UniqueName"
         S3Key: !Ref "LambdaS3Key"
       Description: "Performs a periodic check of the given site, erroring out on test failure."
-      FunctionName: !Ref "LambdaName"
+      FunctionName: !Sub "${UniqueName}-lambda"
       Handler: "code.lambda_handler"
       MemorySize: 128
       PackageType: "Zip"
@@ -84,21 +75,21 @@ Resources:
       Timeout: 10
       Tags: 
         - Key: "Owner"
-          Value: !Ref "Owner"
+          Value: !Ref "UniqueName"
       Environment: 
         Variables:
-          SITE_NAME: !Sub "${LambdaName}-parameter"
+          SITE_NAME: !Sub "${UniqueName}-parameter"
           EXPECTED: "What is AWS Lambda?"
 
   MyLambdaTrigger:
     Type: AWS::Events::Rule
     Properties: 
-      Name: !Sub "${LambdaName}-trigger"
+      Name: !Sub "${UniqueName}-trigger"
       State: "ENABLED"
-      Description: !Sub "trigger for the ${LambdaName} lambda"
+      Description: !Sub "trigger for the ${UniqueName} lambda"
       ScheduleExpression: "rate(5 minutes)"
       Targets: 
-        - Id: !Sub "${LambdaName}-trigger"
+        - Id: !Sub "${UniqueName}-trigger"
           Arn: !GetAtt MyLambda.Arn
 
   InvokeLambdaFunctionPermission:
@@ -112,7 +103,7 @@ Resources:
   SNSTopic:
     Type: "AWS::SNS::Topic"
     Properties:
-      DisplayName: !Sub "${TopicName}-topic" 
+      DisplayName: !Sub "${UniqueName}-topic" 
 
   SNSSubscription:
     Type: "AWS::SNS::Subscription"
