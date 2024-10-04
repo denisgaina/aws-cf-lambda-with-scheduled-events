@@ -2,9 +2,11 @@
 
 set -e
 
+UNIQUE_NAME="denis-gaina"
 # replace the value with your S3 bucket name
-S3_BUCKET_NAME="denis-gaina-cloudformation"
-CF_STACK_NAME="denis-gaina-stack"
+S3_BUCKET_NAME="$UNIQUE_NAME-cloudformation"
+
+CF_STACK_NAME="$UNIQUE_NAME-stack"
 AWS_PROFILE_NAME="default"
 
 # archiving code
